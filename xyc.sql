@@ -109,3 +109,19 @@ round(max(gpa),1) as gpa
 from
 user_profile
 where university = '复旦大学'
+
+//17
+//数据库引擎会对每一行返回1这个值，然后统计这些1的总数
+select
+count(1),
+avg(gpa)
+from
+user_profile
+where gender = 'male'
+
+if函数的用法
+select
+count(if(gender = 'male',1,null) ),
+round(avg(gpa),1) as avg_gpa
+from
+user_profile
