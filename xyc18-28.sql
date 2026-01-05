@@ -180,4 +180,69 @@ left join question_detail as c
 on a.question_id = c.question_id
 group by b.university,c.difficult_level
 
+//25
+select distinct
+device_id,gender,age,gpa
+from
+user_profile
+where university = '山东大学' 
+union all
+select distinct
+device_id,gender,age,gpa
+from
+user_profile
+where gender = 'male' 
 
+//26
+-- if函数的用法
+SELECT 
+    order_id,
+    amount,
+    IF(amount > 1000, '大额订单', '普通订单') AS order_type
+FROM orders;
+
+select
+if(age < 25 or age is null,'25岁以下','25岁及以上'),
+count(1) as number
+from
+user_profile
+group by 1
+
+//27 学习 case when 的用法
+-- 根据分数评级
+SELECT 
+    student_name,
+    score,
+    CASE
+        WHEN score >= 90 THEN 'A'
+        WHEN score >= 80 THEN 'B'
+        WHEN score >= 70 THEN 'C'
+        WHEN score >= 60 THEN 'D'
+        ELSE 'F'
+    END AS grade
+FROM students;
+
+select
+device_id,
+gender,
+case when age<20 then '20岁以下'
+     when age>=20 and age<24 then '20-24岁'
+     when age>=25 then '25岁及以上'
+ else '其他' 
+END as age_cut
+from user_profile
+
+//28
+left函数
+-- 引号类型的区别
+-- 反引号（`）：
+-- 在 MySQL 和 MariaDB 中用于引用标识符（如列名、表名）
+-- 用于避免与保留关键字冲突或处理包含特殊字符的名称
+-- 例如：`date` 表示引用名为 date 的列
+select
+day(`date`) as day
+,count(1) as question_cnt
+from question_practice_detail
+where left(`date`, 7) = '2021-08'
+group by 1
+-- DAY() 是一个日期函数，用于从日期或日期时间值中提取日部分（月份中的具体哪一天），返回一个整数（1-31）。
