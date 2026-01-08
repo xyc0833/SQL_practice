@@ -71,3 +71,10 @@ on a.question_id = c.question_id
 where b.university = '浙江大学'
 group by 1
 order by 2
+
+//36
+select
+device_id,
+age
+from user_profile
+order by 2
