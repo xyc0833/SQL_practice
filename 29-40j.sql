@@ -57,3 +57,17 @@ count(1) as number
 from
 user_submit
 group by 1
+
+
+//35
+select 
+c.difficult_level,
+sum(if(a.result='right',1,0))/count(1)
+from question_practice_detail as a
+left join user_profile as b
+on a.device_id = b.device_id
+left join question_detail as c
+on a.question_id = c.question_id
+where b.university = '浙江大学'
+group by 1
+order by 2
