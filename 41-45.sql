@@ -13,9 +13,9 @@ SELECT
     column1, 
     column2,
     SUM(column_to_sum) OVER (
-        [PARTITION BY partition_expression]
-        [ORDER BY sort_expression [ASC | DESC]]
-        [frame_clause]
+        [PARTITION BY partition_expression] //这个是分组
+        [ORDER BY sort_expression [ASC | DESC]] //这个是排序
+        range between xxx and xxx //分组后求子集
     ) AS sum_result
 FROM table_name;
 --  简单累计求和
@@ -32,3 +32,15 @@ https://www.bilibili.com/video/BV1tzxyzREXP/?spm_id_from=333.337.search-card.all
 select * ,sum(quantity) over (partition by product_id) from sales;
 --窗口函数 保持原本的sql行数不变 去新增一个列
 --partition by 分组依据
+
+//42
+select
+    *,
+    abs(value) as absolute_value,
+    ceil(value) as ceiling_value, # 向上取整
+    floor(value) as floor_value, # 向下取整
+    round(value, 1) as rounded_value
+from
+    numbers
+order by
+    id
