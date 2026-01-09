@@ -167,3 +167,23 @@ where
 -- []表示 character set，结合-使用表示范围，eg: [1-9]表示1,2,3,4,5....8,9组成的集合
 -- {}为数量符，eg:[0-9]{2}表示搜寻'2个0-9中的任意字符'
 -- ？为数量符合，表示0或1个, eg -?表示搜寻'0个或者1个字符 "-" '
+
+//35
+select 
+c.difficult_level,
+sum(if(a.result='right',1,0))/count(1)
+from question_practice_detail as a
+left join user_profile as b
+on a.device_id = b.device_id
+left join question_detail as c
+on a.question_id = c.question_id
+where b.university = '浙江大学'
+group by 1
+order by 2
+
+//36
+select
+device_id,
+age
+from user_profile
+order by 2
