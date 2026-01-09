@@ -58,6 +58,115 @@ from
 user_submit
 group by 1
 
+//31
+select
+device_id,
+substring_index(blog_url,'/',-1)
+from
+user_submit
+
+//32 
+-- 嵌套写法
+select
+substring_index(substring_index(profile,',',3),',',-1) as age,
+count(1) as number
+from
+user_submit
+group by 1
+
+//33
+select
+b.device_id,
+a.*
+from
+(
+    select
+    university,
+    min(gpa) as gpa
+    from user_profile
+    group by 1
+) as a
+left join
+(
+    select
+    *
+    from user_profile
+) as b
+on a.university = b.university and a.gpa = b.gpa
+order by 2
+
+
+//34
+select 
+a.device_id,
+b.university,
+count(question_id) 
+# result
+from question_practice_detail as a
+left join 
+user_profile as b
+on a.device_id = b.device_id
+where b.university = '复旦大学'
+group by a.device_id
+
+sum(if(a.result = 'right',1,0))
+-- if(a.result = 'right', 1, 0)
+-- 这是一个条件判断：
+-- 如果字段 a.result 的值等于字符串 'right'，则返回 1。
+-- 否则返回 0。
+-- 效果：将 'right' 的记录标记为 1，其他记录标记为 0。
+-- sum(...)
+-- 对 if 函数的结果求和：
+-- 所有 1 会被累加（即统计 'right' 的出现次数）。
+-- 0 不影响总和。
+
+select
+    a.device_id as device_id,
+    b.university as university,
+    count(1) as question_cnt,
+    sum(if(a.result = 'right', 1, 0)) as right_question_cnt
+from
+    question_practice_detail as a
+    left join user_profile as b on a.device_id = b.device_id
+where
+    b.university = '复旦大学'
+    and left(a.date, 7) = '2021-08'
+group by
+    a.device_id
+union all
+# 剩下的部分要加入 没有答过题的人
+select
+    a.device_id as device_id,
+    a.university as university,
+    0 as question_cnt,
+    0 as right_question_cnt
+from
+    user_profile a
+    left join question_practice_detail b on a.device_id = b.device_id
+    and a.university = '复旦大学'
+where
+    b.device_id is null
+    and a.university = '复旦大学'
+
+//40
+select
+    id,
+    name,
+    phone_number
+from
+    contacts
+where
+    phone_number REGEXP '^[1-9][0-9]{2}-?[0-9]{3}-?[0-9]{4}$';
+
+^[1-9][0-9]{2}-?[0-9]{3}-?[0-9]{4}$
+-- 可以用‘？’来表示0或1，进一步简化表达式：
+-- -? 意思为 需要匹配0个-（没有-字符）或者1个-字符。
+-- -------------NOTES------------------
+-- ^ 表示字符串开始
+-- $表示字符串结束
+-- []表示 character set，结合-使用表示范围，eg: [1-9]表示1,2,3,4,5....8,9组成的集合
+-- {}为数量符，eg:[0-9]{2}表示搜寻'2个0-9中的任意字符'
+-- ？为数量符合，表示0或1个, eg -?表示搜寻'0个或者1个字符 "-" '
 
 //35
 select 
