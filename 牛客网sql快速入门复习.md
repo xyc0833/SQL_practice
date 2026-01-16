@@ -192,3 +192,136 @@ from user_profile
 group by gender,university
 order by gender,university
 ```
+
+
+## 临时表的训练
+
+临时表内部不能写分号
+
+内部写了分号会报错
+
+程序异常退出, 请检查代码"是否有数组越界等异常"或者"是否有语法错误"
+SQL_ERROR_INFO: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ';\n)\nselect * from t1 where avg_question_cnt<5 or avg_answer_cnt<20' at line 9"
+
+```sql
+with t1 as (
+select
+    university,
+    avg(question_cnt) as avg_question_cnt,
+    avg(answer_cnt) as avg_answer_cnt
+from
+    user_profile
+group by
+    university
+)
+select * from t1 where  avg_question_cnt<5 or  avg_answer_cnt<20;
+
+```
+等价于
+
+```sql
+select
+university,
+avg(question_cnt) as avg_question_cnt,
+avg(answer_cnt) as  avg_answer_cnt
+from user_profile
+group by 1
+having  avg_question_cnt < 5 or avg_answer_cnt < 20
+```
+
+## having 子句
+ HAVING …… 对 SELECT …… 查询后（通常是分组并聚合查询后）的结果列进行 事后筛选
+
+ - WHERE 是对 FROM JOIN 里原表中的列进行 事前筛选
+
+
+
+using 的复习 
+21题
+```sql
+-- 先取出浙江大学学生的数据
+
+select a.device_id, b.question_id,b.result
+from user_profile as a
+left join question_practice_detail as b
+using(device_id)
+where university = '浙江大学'
+order by b.question_id
+```
+
+
+```sql
+-- 还是想着构建临时表
+--先拿到每个学校的总答题数。和 总用户数
+with
+    t1 as (
+        select
+            university,
+            count(question_id) as total_question,
+            count(DISTINCT question_practice_detail.device_id) as user_num
+        from
+            user_profile
+            left join question_practice_detail using (device_id)
+        group by
+            university
+    )
+select university, round(total_question/user_num,4)  as avg_answer_cnt
+from t1;
+```
+
+
+出现问题
+程序异常退出, 请检查代码"是否有数组越界等异常"或者"是否有语法错误"
+SQL_ERROR_INFO: "Duplicate column name 'id'"
+
+错误代码
+```sql
+with
+    t1 as (
+        select
+            *
+        from
+            question_practice_detail as a
+            left join user_profile as b using (device_id)
+            left join question_detail as c using (question_id)
+    )
+select  
+b.university,
+c.difficult_level,
+count(a.question_id)/count(a.device_id)
+from t1
+group by b.university,c.difficult_level;
+
+-- 先构建一张基础表
+
+```
+
+一、结论先行（一句话版）
+
+👉 错误出在 t1 里用了 select *，而三张表中都包含名为 id 的列
+👉 MySQL 在构建 CTE t1 时，发现 结果集中出现了多个 id 列
+👉 直接报错：Duplicate column name 'id'
+
+23题复习
+```sql
+with
+    t1 as (
+        select
+            university,difficult_level,
+            a.question_id as question_id,
+            a.device_id as  device_id
+        from
+            question_practice_detail as a
+            left join user_profile using (device_id)
+            left join question_detail using (question_id)
+    )
+select  
+university,
+difficult_level,
+count(question_id)/count(distinct device_id)
+from t1
+group by university,difficult_level;
+
+-- 先构建一张基础表
+
+```
