@@ -325,3 +325,53 @@ group by university,difficult_level;
 -- 先构建一张基础表
 
 ```
+
+//25
+
+## union关键字
+
+union会去重
+
+union all 不会去重
+
+FROM …… JOIN …… 可对多张表进行横向列合并，而 …… UNION …… 可用来按行纵向合并多个查询结果，这些查询结果
+可能来自相同或不同的表
+同一张表可通过UNION添加新的分类字段，即先通过分类查询并添加新的分类字段再UNION合并为带分类字段
+的新表。
+不同表通过UNION合并的情况如：将一张18年的订单表和19年的订单表纵向合并起来在一张表里展示
+
+合并的查询结果必须列数相等，否则会报错
+合并表里的列名由排在UNION前面的决定
+
+感觉本质上可以将查询语句的任何一步和任何一个层次，包括（按实际执行顺序排列）：
+1. 选取表 FROM ……
+2. 横向连接合并 …… JOIN ……
+3. 纵向筛选 WHERE ……
+4. 横向筛选 SELECT ……
+5. 纵向连接合并 …… UNION ……
+6. 排序、限制，ORDER BY …… LIMIT ……
+本质上都可以看作暂时生成了一张新表（储存在内存中的虚拟表，中间过程表，桥梁表），将后续步骤都看作是在
+对这些新表进行进一步的操作，这样，层次步骤就能理清，就好理解了，也才真的能从本质上掌握并灵活运用
+
+```sql
+select 
+device_id,gender,age,gpa
+from
+user_profile
+where university = '山东大学' 
+union all
+select 
+device_id,gender,age,gpa
+from
+user_profile
+where gender = 'male'
+```
+
+//26
+```sql
+select
+if(age<25 or age is null,'25岁以下', '25岁及以上'),
+count(id)
+from user_profile
+group by 1
+```

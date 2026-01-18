@@ -1,0 +1,366 @@
+# sql复习
+
+## case when 的用法
+
+当分类多于两种时，可以用IF嵌套，也可以用CASE语句，后者可读性更好
+
+ELSE 'Future' 是可选的，实验发现若分类不完整，比如只写了今年和去年的两个分类条件，则不在这两个分类的
+记录的category字段会得到是null（当然）.
+
+```sql
+SELECT
+order_id,
+CASE
+WHEN YEAR(order_date) = YEAR(NOW()) THEN 'Active'
+WHEN YEAR(order_date) = YEAR(NOW()) - 1 THEN 'Last Year'
+WHEN YEAR(order_date) < YEAR(NOW()) - 1 THEN 'Achived'
+[ELSE 'Future']
+END AS 'category'
+FROM orders
+```
+
+```sql
+select
+device_id,gender,
+    case
+        when age<20 then '20岁以下'
+        when age>=20 and age<=24 then '20-24岁'
+        when age>=25 then '25岁及以上'
+        else '其他'
+    end as age_cut
+from
+user_profile
+```
+
+# 字符串函数
+
+依然介绍最常用的字符串函数： 
+1. LENGTH, UPPER, LOWER 
+2. TRIM, LTRIM, RTRIM 
+3. LEFT, RIGHT, SUBSTRING 
+4. LOCATE, REPLACE, 【CONCAT】 
+查看全部搜索关键词 'mysql string functions'
+
+长度、转大小写：
+SELECT LENGTH('sky') -- 字符串字符个数/长度（LENGTH）
+SELECT UPPER('sky') -- 转大写
+SELECT LOWER('Sky') -- 转小写
+
+修剪：用户输入时时常多打空格，下面三个函数用于处理/修剪（trim）字符串前后的空格，L、R 表示 LEFT、
+RIGHT：
+SELECT LTRIM(' Sky')
+SELECT RTRIM('Sky ')
+SELECT TRIM(' Sky ')
+
+切片（提取）：
+```sql
+SELECT LEFT('Kindergarden', 4) -- 取左边（LEFT）4个字符
+SELECT RIGHT('Kindergarden', 6) -- 取右边（RIGHT）6个字符
+SELECT SUBSTRING('Kindergarden', 7, 6)
+-- 取从第7个开始的长度为6的子串（SUBSTRING）
+-- 【注意SQL是从第1个（而非第0个）开始计数的】
+-- 【省略第3参数（子串长度）则一直截取到最后】
+```
+
+### SUBSTRING_INDEX
+
+-- sql字段内如何截取字符？
+-- SUBSTRING_INDEX 是 SQL 中用于根据指定分隔符和出现次数截取字符串的函数
+SELECT SUBSTRING_INDEX('user@example.com', '@', -1);  
+-- 返回 'example.com'
+SELECT SUBSTRING_INDEX('/home/user/file.txt', '/', 3);  
+-- 返回 '/home/user'
+SELECT SUBSTRING_INDEX('A|B|C', '|', 2);  
+-- 返回 'A|B'（第2个分隔符前）
+SELECT SUBSTRING_INDEX('A|B|C', '|', -2);  
+-- 返回 'B|C'（倒数第2个分隔符后）
+
+
+
+定位：
+SELECT LOCATE('gar', 'Kindergarden') -- 定位（LOCATE）首次出现的位置
+-- 【没有的话返回0（其他编程语言大多返回-1，可能因为索引是从0开始的）】
+-- 【这个定位/查找函数依然是不区分大小写的】
+
+替换：
+SELECT REPLACE('Kindergarten', 'garten', 'garden');
+
+
+连接：
+con`catenate v. 连接，连结
+
+SELECT CONCAT(first_name, ' ', last_name) AS full_name
+FROM customers
+
+自己尝试
+**有个小问题需要注意，这里一定要用反引号才可以**
+```sql
+select 
+left(`date`,7)
+from
+question_practice_detail;
+```
+
+//28
+```sql
+select 
+right(`date`,2) as day, --此处也可以使用day函数 day(`date`) as day
+count(question_id) as question_cnt
+from
+question_practice_detail
+where 
+left(`date`,7) = '2021-08'
+group by 1;
+```
+
+## 计算日期和时间的函数
+
+有时需要对日期事件对象进行运算，如增加一天或算两个时间的差值之类，介绍一些最有用的日期时间计算函数： 
+1. DATE_ADD, DATE_SUB 
+2. DATEDIFF 
+3. TIME_TO_SEC
+
+增加或减少一定的天数、月数、年数、小时数等等
+
+SELECT DATE_ADD(NOW(), 【INTERVAL -1 DAY】)
+SELECT DATE_SUB(NOW(), INTERVAL 1 YEAR)
+
+计算日期差异
+SELECT DATEDIFF('2019-01-01 09:00', '2019-01-05')
+-- -4
+-- 会忽略时间部分，【只算日期差异】
+-- 再次注意手写日期要加引号
+
+借助 TIME_TO_SEC 函数计算时间差异，TIME_TO_SEC 会计算从 00:00 到某时间经历的秒
+SELECT TIME_TO_SEC('09:00') -- 32400
+SELECT TIME_TO_SEC('09:00') - TIME_TO_SEC('09:02') -- -120
+
+## group by
+
+按一列或多列分组，注意语句的位置
+
+```sql
+with temp as (
+    select device_id,date
+    from question_practice_detail
+    group by device_id,date
+)
+
+select
+count(b.device_id)/count(a.device_id)
+from temp  as a
+left join temp as b
+using(device_id)
+where adddate(a.date,interval 1 day) = b.date;
+```
+
+//33
+
+-- 先拿到每个学校的最低gpa
+
+select
+university,
+min(gpa)
+from user_profile
+group by university;
+
+```sql
+--构建临时表
+with t1 as (
+    select
+university,
+min(gpa) as gpa
+from user_profile
+group by university
+)
+select 
+device_id,
+t1.university,
+t1.gpa
+from t1
+left join user_profile as b
+on t1.university = b.university
+and t1.gpa = b.gpa
+order by t1.university;
+```
+
+## 窗口函数
+
+窗口函数是在原有表格的基础上，新生成一个列，这个列包含了基于某些计算或统计的结果，而不影响原有数据的行
+
+举个简单的例子
+
+假设你有一个员工表，记录了每个员工的销售额：
+
+员工ID	销售额
+1	500
+2	600
+3	700
+4	550
+
+你现在想在这个表中新增一列，显示每个员工的销售额排名，并且不影响原表中的其他数据。
+这时你可以使用窗口函数来实现。
+
+使用窗口函数来排名
+SELECT 
+    员工ID,
+    销售额,
+    RANK() OVER (ORDER BY 销售额 DESC) AS 销售额排名
+FROM 员工销售;
+
+结果：
+员工ID	销售额	销售额排名
+3	700	1
+2	600	2
+4	550	3
+1	500	4
+
+在这里，我们没有改变原有的表格，只是新增了一个销售额排名的列。每一行的数据都保留原样，并且窗口函数给每行加上了一个计算值。
+
+小结：
+
+窗口函数是对表格中每一行数据进行计算，并且新生成一个列，而不改变原有数据的结构。
+你可以用它来做排名、累积求和、滑动平均等计算，十分方便。
+
+https://www.bilibili.com/video/BV1jG411M7hr/?spm_id_from=333.337.search-card.all.click&vd_source=4fd29620ab97a080af7ee392e19b0fcb
+
+-- over是窗口函数？？
+https://www.bilibili.com/video/BV1tzxyzREXP/?spm_id_from=333.337.search-card.all.click&vd_source=4fd29620ab97a080af7ee392e19b0fcb
+
+select * ,sum(quantity) over (partition by product_id) from sales;
+--窗口函数 保持原本的sql行数不变 去新增一个列
+--partition by 分组依据
+```sql
+SELECT 
+    column1, 
+    column2,
+    SUM(column_to_sum) OVER (
+        [PARTITION BY partition_expression] //这个是分组
+        [ORDER BY sort_expression [ASC | DESC]] //这个是排序
+        range between xxx and xxx //分组后求子集
+    ) AS sum_result
+FROM table_name;
+--  简单累计求和
+SELECT 
+    date,
+    sales,
+    SUM(sales) OVER (ORDER BY date) AS running_total
+FROM sales_data;
+-- 这个查询会按日期顺序计算销售总额的累计值。
+
+select * ,sum(quantity) over (partition by product_id) from sales;
+```
+
+![alt text](image-5.png)
+
+窗口函数例子 41题
+
+```sql
+select
+profit_id,
+profit_date,
+profit,
+sum(profit) over(
+    order by profit_date
+) as cumulative_profit
+from daily_profits;
+```
+
+
+//34题
+
+错误解法
+```sql
+with t1 as (
+    select
+    a.device_id,a.question_id,a.result,a.date,b.university
+    from question_practice_detail as a
+    left join user_profile as b
+    using (device_id)
+    where university = '复旦大学'
+)
+select
+device_id,
+university,
+count(distinct question_id) as question_cnt,
+count(if(result= 'right',1,null)) as right_question_cnt
+from t1 
+group by device_id,university
+;
+```
+
+//39
+```sql
+select
+count(distinct device_id) as did_cnt
+,count(1) as question_cnt
+from question_practice_detail
+where left(`date`, 7) = '2021-08'
+
+```
+
+## REGEXP运算符
+
+正则表达式，在搜索字符串方面更为强大，可搜索更复杂的模板
+
+![alt text](image-6.png)
+```sql
+select
+    id,
+    name,
+    phone_number
+from
+    contacts
+where
+    phone_number REGEXP '^[1-9][0-9]{2}-?[0-9]{3}-?[0-9]{4}$';
+
+select * from customers
+where last_name like '%field%'
+
+--等价于
+where last_name regexp 'field'
+
+```
+
+
+## 基本数学函数
+
+//42
+```sql
+select
+    *,
+    abs(value) as absolute_value,
+    ceil(value) as ceiling_value, # 向上取整
+    floor(value) as floor_value, # 向下取整
+    round(value, 1) as rounded_value
+from
+    numbers
+order by
+    id
+```
+
+
+//35
+自己写的
+```sql
+with
+    t1 as (
+        select
+            a.device_id as device_id,
+            a.question_id as question_id,
+            a.result as result,
+            b.university,
+            c.difficult_level as difficult_level
+        from
+            question_practice_detail as a
+            left join user_profile as b using (device_id)
+            left join question_detail as c using (question_id)
+        where
+            b.university = '浙江大学'
+    )
+select
+difficult_level,
+count(if(result='right',1,null))/count(question_id)
+from t1
+group by 1;
+```

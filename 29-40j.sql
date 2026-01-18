@@ -31,7 +31,7 @@ select
 count(b.device_id) / count(a.device_id) as avg_ret
 from tmp as a
 left join tmp b
-on a.device_id = b.device_id
+on a.device_id = b.device_did
 and a.date = date_sub(b.date,interval 1 day)
 
 //30
