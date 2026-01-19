@@ -266,6 +266,59 @@ sum(profit) over(
 from daily_profits;
 ```
 
+### 窗口函数 移动平均值 和 累积求和
+
+**移动平均值**
+![alt text](image-7.png)
+这段SQL语句通过`window function`的方式，计算了每个产品（`product`）在指定时间范围（按年月 `ym` 排序）内的某个金额（`amount`）的平均值。
+
+```sql
+select product,ym,amount,
+avg(amount) over (partition by product order by ym
+rows between 2 preceding and current row)
+from sales_monthly;
+```
+![alt text](image-8.png)
+
+####  具体的解释：
+
+* **SELECT**: 选择需要查询的字段。这里查询了 `product`（产品）、`ym`（年月）和 `amount`（销售金额）字段。
+
+* **avg(amount) over(...)**: 计算 `amount` 字段的平均值。这个 `avg` 不是一个普通的聚合函数，而是与`window function`结合使用，在窗口内进行计算，返回每行的一个计算结果。
+
+* **PARTITION BY product**: 这个部分会将查询的数据按照 `product`（产品）进行分组。每个产品的销售数据会作为一个单独的“窗口”进行处理，计算每个窗口内的平均值。
+
+* **ORDER BY ym**: 这是对数据进行排序的方式，按 `ym`（年月）进行升序排序。这个排序决定了在计算平均值时如何确定窗口的顺序。
+
+* **ROWS BETWEEN 2 PRECEDING AND CURRENT ROW**: 这是一个非常关键的部分，它定义了每个窗口的范围。意思是：
+
+  * 对于每一行，窗口将包含当前行和前面2行的数据。
+  * 换句话说，每个产品的每个月，计算的是当前月和前两个月（包括当前月）的 `amount` 的平均值。
+
+### 结果的含义：
+
+* 查询结果会展示每个产品在每个月的销售金额，并且每个月都会有一个基于前两个月（包括当前月）的 `amount` 平均值。
+  比如：
+  * 对于 `201802`（2018年2月），它会显示2018年2月的 `amount` 和2018年1月、2月、3月这三个月份的平均销售金额。
+
+通过这样的分析，可以用来观察产品在不同时间段内的销售趋势。
+
+**累积销量**
+
+![alt text](image-9.png)
+
+等价于
+```sql
+select product,ym,amount,
+sum(amount) over (partition by product order by ym)
+from sales_monthly;
+```
+
+第三个参数的具体解析
+
+![alt text](image-10.png)
+
+![alt text](image-11.png)
 
 //34题
 
@@ -298,6 +351,53 @@ from question_practice_detail
 where left(`date`, 7) = '2021-08'
 
 ```
+
+### 窗口函数 分类排名 和 累积分布
+
+#### 分类排名
+![alt text](image-12.png)
+
+需要按照 partition by的分区 去进行排名
+
+![alt text](image-13.png)
+
+```sql
+select emp_name,dept_id,salary,
+    row_number() over(partition by dept_id order by salary desc) as rn,
+    rank() over(partition by dept_id order by salary desc) as rk,
+    dense_rank() over(partition by dept_id order by salary desc) as dr,
+    present_rank() over(partition by dept_id order by salary desc)as pr
+from employee e;
+```
+1️⃣ 整体作用一句话
+
+在每个部门（dept_id）内部，按工资（salary）从高到低，对员工进行多种“排名计算”。
+
+这是一个典型的窗口函数（Window Function）对比示例，用来同时展示
+row_number / rank / dense_rank / percent_rank 的区别。
+
+上面的sql等价于
+```sql
+SELECT
+    emp_name,
+    dept_id,
+    salary,
+    ROW_NUMBER()   OVER w AS rn,
+    RANK()         OVER w AS rk,
+    DENSE_RANK()   OVER w AS dr,
+    PERCENT_RANK() OVER w AS pr
+FROM employee e
+WINDOW w AS (
+    PARTITION BY dept_id
+    ORDER BY salary DESC
+);
+-- 这个window需要放到查询的后面定义
+```
+
+#### 累积分布
+![alt text](image-14.png)
+
+
 
 ## REGEXP运算符
 
@@ -364,3 +464,5 @@ count(if(result='right',1,null))/count(question_id)
 from t1
 group by 1;
 ```
+
+

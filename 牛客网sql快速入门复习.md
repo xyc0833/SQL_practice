@@ -375,3 +375,5 @@ count(id)
 from user_profile
 group by 1
 ```
+
+## sql 删除语句
