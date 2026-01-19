@@ -377,3 +377,245 @@ group by 1
 ```
 
 ## sql 删除语句
+
+delete from invoices
+where invoice_id = 19;
+
+
+## 函数相关
+- 格式化日期和时间
+- IFNULL 和 COALESE函数
+
+有一些内容已经在 牛客网 sql快速入门2 里面 
+有些在之前刷题的时候用到过不展开了
+
+### 格式化日期和时间
+
+```sql
+select date_format(now(),'%Y');
+SELECT DATE_FORMAT(NOW(), '%M %d, %Y') -- September 12, 2020
+-- 【格式说明符里，大小写是不同的，这是目前SQL里第一次出现大小写不同的情况】
+SELECT TIME_FORMAT(NOW(), '%H:%i %p') -- 11:07 AM
+```
+
+日期事件格式化函数应该只是转换日期时间对象的显示格式（另外始终铭记日期时间本质是数值）
+
+格式说明符里，大小写代表不同的格式，这是目前SQL里第一次出现大小写不同的情况
+
+方法
+很多像这种完全不需要记也不可能记得完，重要的是知道有这么个可以实现这个功能的函数，具体的格式说明符
+（Specifiers）可以需要的时候去查，至少有两种方法： 
+1. 直接谷歌关键词 如 mysql date format functions, 其实是在官方文档的 12.7 Date and Time Functions 小结
+里，有两个函数的说明和specifiers表 
+2. 用软件里的帮助功能，如workbench里的HELP INDEX打开官方文档查询或者右侧栏的 automatic comtext
+help (其是也是查官方文档，不过是自动的)
+
+### ifnull 和 COALESE 函数
+
+两个用来替换空值的函数：IFNULL, COALESCE. 
+IFNULL : 前者用来返回两个值中的首个非空值，用来替换空值
+COALESCE : 后者用来返回一系列值中的首个非空值，用法更灵活
+
+将orders里shipper.id中的空值替换为'Not Assigned'（未分配）
+
+```sql
+SELECT
+order_id,
+IFNULL(shipper_id, 'Not Assigned') AS shipper
+-- If expr1 is not NULL, IFNULL() returns expr1; otherwise it returns expr2.
+FROM orders
+```
+
+COALESE 的用法
+
+将orders里shipper.id中的空值先替换comments，若comments也为空再替换为'Not Assigned'（未分配）
+
+```sql
+SELECT
+order_id,
+COALESCE(shipper_id, comments, 'Not Assigned') AS shipper
+-- Returns the first non-NULL value in the list, or NULL if there are no non-NULLvalues.
+FROM orders
+```
+
+COALESCE 函数是返回一系列值中的首个非空值，更灵活
+
+
+## 视图
+
+就是创建虚拟表，自动化一些重复性的查询模块，简化各种复杂操作（包括复杂的子查询和连接等）
+
+注意视图虽然可以像一张表一样进行各种操作，但并没有真正储存数据，数据仍然储存在原始表中，视图只是储存
+起来的模块化的查询结果（会随着原表数据的改变而改变），是为了方便和简化后续进一步操作而储存起来的虚拟
+表。
+
+```sql
+use sql_invoicing;
+create view sales_by_client as 
+SELECT
+client_id,
+name,
+SUM(invoice_total) AS total_sales
+FROM clients c
+JOIN invoices i USING(client_id)
+GROUP BY client_id, name;
+-- 【虽然实际上这里GROUP BY加不加上name都一样，但一般把选择子句中出现的所有非聚合列都加入到分类
+-- 依据中比较好，在有些DBMS里不这样做会报错】sales_by_clientsales_by_clientsales_by_clientsales_by_client
+```
+
+若要删掉该视图用 【DROP VIEW sales_by_client】 或右键
+创建视图后可就当作sql_invoicing库下一张表一样进行各种操作
+
+```sql
+USE sql_invoicing;
+SELECT
+s.name,
+s.total_sales,
+phone
+FROM sales_by_client s
+JOIN clients c USING(client_id)
+WHERE s.total_sales > 500
+```
+
+### 更新或删除视图
+
+修改视图可以先 DROP 再 CREATE，但最好是用 CREATE OR REPLACE
+视图的查询语句可以在该视图的设计模式（点击扳手图标）下查看和修改，但最好是保存为sql文件并放在源码控
+制妥善管理
+
+CREATE OR REPLACE VIEW clients_balance AS
+……
+ORDER BY balance DESC
+
+如何保存视图的原始查询语句？
+法1.
+（推荐方法） 将原始查询语句保存为与视图名同名的 clients_balance.sql 文件并放在 views 文件夹下，然后将
+这个文件夹放在源码控制下（put these files under source control）, 通常放在git repository（仓库）里与
+其它人共享，团队其他人因此能在自己的电脑上重建这个数据库
+
+法2.
+若丢失了原始查询语句，要修改的话可点击视图的扳手按钮打开设计模式，可看到如下被MySQL处理了的查询语
+句
+MySQL在前面加了些用户主机名之类的东西并且在所有库名表名字段名外套上反引号防止名称冲突（当对象名和
+MySQL里的关键字相同时确保被当作对象名而不是关键字），但这都不影响
+直接做我们需要的修改，如加上ORDER BY balance DESC 然后点apply就行了
+
+```sql
+CREATE 
+    ALGORITHM = UNDEFINED 
+    DEFINER = `root`@`localhost` 
+    SQL SECURITY DEFINER
+VIEW `sales_by_client` AS
+    SELECT 
+        `c`.`client_id` AS `client_id`,
+        `c`.`name` AS `name`,
+        SUM(`i`.`invoice_total`) AS `total_sales`
+    FROM
+        (`clients` `c`
+        JOIN `invoices` `i` ON ((`c`.`client_id` = `i`.`client_id`)))
+    GROUP BY `c`.`client_id` , `c`.`name`
+    ORDER BY `total_sales` DESC
+```
+
+### 可更新视图
+
+如果一个视图的原始查询语句中没有如下元素： 
+1. GROUP BY 分组、聚合函数、HAVING 分组聚合后筛选 (即分组聚合筛选三兄弟) 
+2. DISTINCT 去重
+3. UNION 纵向合并
+则该视图是可更新视图（Updatable Views），可以用在 INSERT DELETE UPDATE 语句中进行增删改，否则只能
+用在 SELECT 语句中进行查询。（1好理解，2和3需要记一下）
+另外，增（INSERT）还要满足附加条件：视图必须包含底层原表的所有必须字段（也很好理解）
+总之，一般通过原表修改数据，但当出于安全考虑或其他原因没有某表的直接权限时，可以通过视图来修改数据，
+前提是视图是可更新的。
+
+创建视图（新虚拟表）invoices_with_balance（带差额的发票记录表）
+```sql
+USE sql_invoicing;
+CREATE OR REPLACE VIEW invoices_with_balance AS
+SELECT
+/*这里有个小技巧，要插入表中的多列列名时，
+可从左侧栏中【连选并拖入】相关列
+*/
+invoice_id,
+number,
+client_id,
+invoice_total,
+payment_total,
+invoice_date,
+invoice_total - payment_total AS balance,
+-- 新增列
+due_date,
+payment_date
+FROM invoices
+WHERE (invoice_total - payment_total) > 0
+/*
+这里不能用列别名balance，会报错说不存在，
+必须用原列名的表达式
+之前从执行顺序解释过
+*/
+```
+
+该视图满足条件，是可更新视图，故可以增删改：
+1. 删：
+删掉id为1的发票记录
+DELETE FROM invoices_with_balance
+WHERE invoice_id = 1
+
+2. 改：
+将2号发票记录的期限延后两天
+
+UPDATE invoices_with_balance
+SET due_date = DATE_ADD(due_date, INTERVAL 2 DAY)
+WHERE invoice_id = 2
+
+3. 增：
+在视图中用 INSERT 新增记录的话还有另一个前提，即视图必须包含其底层所有原始表的所有必须字段（这很好
+理解）
+例如，若这个invoices_with_balance视图里没有invoice_date字段（invoices中的必须字段），那就无法通过该
+视图向invoices表新增记录，因为invoices表不会接受必须字段 invoice_date 为空的记录
+
+###  WITH CHECK OPTION 子句
+
+在视图的原始创建语句的最后加上 WITH CHECK OPTION 可以防止执行那些会让视图中某些行（记录）消失的修改语
+句。
+案例
+接前面的invoices_with_balance视图的例子，该视图与原始的orders表相比增加了balance (invouce_total -
+payment_total)列，且只显示balance大于0的行（记录），若将某记录（如2号订单）的payment_total改为和
+invouce_total相等，则balance为0，该记录会从视图中消失：
+```sql
+UPDATE invoices_with_balance
+SET payment_total = invoice_total
+WHERE invoice_id = 2
+```
+
+更新后会发现 invoices_with_balance 视图里2号订单消失。
+但在视图原始创建语句的最后加入 WITH CHECK OPTION 后，对3号订单执行类似上面的语句后会报错：
+
+```sql
+USE sql_invoicing;
+CREATE OR REPLACE VIEW invoices_with_balance AS
+……
+WHERE (invoice_total - payment_total) > 0
+【WITH CHECK OPTION】;
+UPDATE invoices_with_balance
+SET payment_total = invoice_total
+WHERE invoice_id = 3;
+-- Error Code: 1369. CHECK OPTION failed 'sql_invoicing.invoices_with_balance'
+```
+
+### 视图的其他优点
+
+三大优点：
+简化查询、增加抽象层和减少变化的影响、数据安全性
+具体来讲：
+1. （首要优点）简化查询 simplify queries
+2. 增加抽象层，减少变化的影响 Reduce the impact of changes：视图给表增加了一个抽象层（模块化），这样
+如果数据库设计改变了（如一个字段从一个表转移到了另一个表），只需修改视图的查询语句使其能保持原有查
+询结果即可，不需要修改使用这个视图的那几十个查询。相反，如果没有视图这一层的话，所有查询将直接使用
+指向原表的原始查询语句，这样一旦更改原表设计，就要相应地更改所有的这些查询。
+
+3. 限制对原数据的访问权限 Restrict access to the data：在视图中可以对原表的行和列进行筛选，这样如果你禁
+止了对原始表的访问权限，用户只能通过视图来修改数据，他们就无法修改视图中未返回的那些字段和记录。但
+需注意，这并不像听上去这么简单，需要良好的规划，否则最后可能搞得一团乱。
+
